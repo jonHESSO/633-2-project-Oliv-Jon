@@ -17,9 +17,14 @@
 *.zip
 *.tar.gz
 *.rar
+*.iml
 
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
 
 #client data folder content
 633-2 project Oliv&Jon - Client/data/*
+data/*
+
+#intelliJ files
+.idea/*
