@@ -6,49 +6,166 @@
 
 package client;
 
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.InetAddress;
+import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.UnknownHostException;
 import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
 
 public class Client
 {
-	public static void main(String[] args)
+	public static void main(String[] args) throws UnknownHostException, IOException, ClassNotFoundException
 	{
-		String serverName = "192.168.0.15" ;
-		InetAddress serverAddress ;
+		/*Connection to the server*/
+		
+		//Variables for connecting to the server		
+		Socket serverConnectionSocket ;
+		String serverName = "192.168.0.1" ;
+		String localName = "192.168.0.1" ;
 		int port = 50000 ;
-		Socket clientSocket ;
-		ObjectInputStream inputStream ;
-		ObjectOutputStream outputStream ;
-		List<String> clientFiles = new ArrayList<>() ;
-		List<String[]> fileList = null ;
-		try {
-		    File directory = new File("data/") ;
-			File[] files = directory.listFiles() ;
-			System.out.println(files) ;
-            for (File f : files) {
-                clientFiles.add(f.getName()) ;
-            }
-			clientSocket = new Socket(InetAddress.getByName(serverName), port) ;
-			outputStream = new ObjectOutputStream(clientSocket.getOutputStream()) ;
-			outputStream.writeObject(clientFiles);
-			outputStream.flush();
-			inputStream = new ObjectInputStream(clientSocket.getInputStream()) ;
-			fileList = (ArrayList<String[]>)inputStream.readObject() ;
-			for (String[] s: fileList)
-			{
-				System.out.println(s[0]+" : "+s[1]) ;
-			}
-			clientSocket.close();
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
+
+		//Data lists
+		List<String> clientFileList = null ;
+		List<String[]> serverFileList = null ;
+		String path = "/data" ;
+		
+		//Get the client file list
+		clientFileList = getClientFiles(path) ;
+
+		//connect to server
+		serverConnectionSocket = connectToServer(serverName, port) ;
+		
+		//send client file list to server
+		sendClientFileList(serverConnectionSocket, clientFileList) ;
+		
+		//get the available file list from the server
+		serverFileList = getServerFileList(serverConnectionSocket) ;
+		
+		//close connection to server		
+		serverConnectionSocket.close();
+		
+		/*Sending a file to another client*/
+		
+		//Accept entering connection
+		Socket clientSendingSocket ;
+		clientSendingSocket = acceptClientConnection(localName, port) ;
+		
+		//get requested file name
+		String fileName = getRequestedFileName(clientSendingSocket) ;
+		
+		//send requested file to client
+		sendFileToClient(clientSendingSocket, path, fileName) ;
+		
+		//close connection to client
+		clientSendingSocket.close();
+		
+		/*Donwloading a file from a client*/
+		
+		//Connect to client which has the file		
+		String[] fileInfo = serverFileList.get(0) ;
+		Socket clientDownloadingSocket = connectToClient(fileInfo, port) ;
+		
+		//DownLoading the file from the client
+		downloadFileFromClient(clientDownloadingSocket, fileInfo, path) ;
+		
+		//close connection to the client
+		clientDownloadingSocket.close();		
+		
 	}
+	
+	/*Broadcasting and retrieving file list to/from server*/
+	public static List<String> getClientFiles(String path)
+	{
+		File directory = new File(path) ;
+		List<String> clientFiles = new ArrayList<>() ;
+		File[] files = directory.listFiles() ;
+		System.out.println(files) ;
+		for (File f : files) {
+			clientFiles.add(f.getName()) ;
+		}
+		return clientFiles ;
+	}
+	
+	public static Socket connectToServer(String serverName, int port) throws UnknownHostException, IOException
+	{		
+		InetAddress serverAddress = InetAddress.getByName(serverName);		
+		Socket serverConnectionSocket = new Socket(serverAddress, port) ;
+		return serverConnectionSocket ;
+	}
+	
+	public static boolean sendClientFileList(Socket clientSocket, List<String> clientFileList) throws IOException
+	{
+		ObjectOutputStream outputStream = new ObjectOutputStream(clientSocket.getOutputStream()) ;
+		outputStream.writeObject(clientFileList);
+		return true ;
+	}
+	
+	public static List<String[]> getServerFileList(Socket clientSocket) throws IOException, ClassNotFoundException
+	{
+		List<String[]> serverFileList = null ;
+		ObjectInputStream inputStream = new ObjectInputStream(clientSocket.getInputStream()) ;
+		serverFileList = (ArrayList<String[]>)inputStream.readObject() ;
+		for (String[] fileName: serverFileList)
+		{
+			System.out.println(fileName[0]+" : "+fileName[1]) ;
+		}
+		return serverFileList ;
+	}
+	
+	/*Sending a file to a client*/
+	
+	public static Socket acceptClientConnection(String localName, int port) throws IOException
+	{
+		InetAddress localAddress = InetAddress.getByName(localName) ;
+		ServerSocket listeningSocket = new ServerSocket(port, 5, localAddress) ;
+		Socket clientSendingSocket = listeningSocket.accept() ;
+		listeningSocket.close();
+		return clientSendingSocket ;
+	}
+	
+	public static String getRequestedFileName(Socket clientSendingSocket) throws IOException, ClassNotFoundException
+	{
+		ObjectInputStream inputStream = new ObjectInputStream(clientSendingSocket.getInputStream()) ;
+		String fileName = (String)inputStream.readObject() ;
+		return fileName ;
+	}
+	
+	public static boolean sendFileToClient(Socket clientSendingSocket, String path, String fileName) throws IOException
+	{
+//		File file = new File(path+fileName) ;
+		DataOutputStream outputStream = new DataOutputStream(clientSendingSocket.getOutputStream()) ;
+		Files.copy(Paths.get(path+fileName), outputStream) ;
+//		outputStream.writeObject(file);
+		return true ;
+	}
+	
+	/*Recieving a file from a client*/
+	
+	public static Socket connectToClient(String[] fileInfo, int port) throws IOException
+	{
+		String clientName = fileInfo[0] ;
+		InetAddress clientAddress = InetAddress.getByName(clientName) ;
+		Socket clientDownloadingSocket = new Socket(clientAddress, port) ;
+		return clientDownloadingSocket ;
+	}
+	
+	public static boolean downloadFileFromClient(Socket clientDownloadingSocket, String[] fileInfo, String path) throws IOException, ClassNotFoundException 
+	{
+		String fileName = fileInfo[1] ;
+		DataInputStream inputStream = new DataInputStream(clientDownloadingSocket.getInputStream()) ;
+//		File file = (File)inputStream.readObject() ;
+		Files.copy(inputStream, Paths.get(path+fileName)) ;
+		return true ;
+	}
+	
 }
