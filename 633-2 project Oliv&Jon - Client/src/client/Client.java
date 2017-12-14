@@ -33,8 +33,9 @@ public class Client
 		//Variables for connecting to the server		
 		Socket serverConnectionSocket ;
 		String serverName = "192.168.108.10" ;
-		String localName = "192.168.0.10" ;
-		int port = 50000 ;
+		String localName = "192.168.108.1" ;
+		int port1 = 50000 ;
+		int port2 = 50001 ;
 
 		//Data lists
 		List<String> clientFileList = null ;
@@ -45,7 +46,7 @@ public class Client
 		clientFileList = getClientFiles(path) ;
 
 		//connect to server
-		serverConnectionSocket = connectToServer(serverName, port) ;
+		serverConnectionSocket = connectToServer(serverName, port1) ;
 		
 		//send client file list to server
 		sendClientFileList(serverConnectionSocket, clientFileList) ;
@@ -61,18 +62,25 @@ public class Client
 		
 		/*
 		//Accept entering connection
-		Socket clientSendingSocket ;
-		clientSendingSocket = acceptClientConnection(localName, port) ;
+		InetAddress localAddress = InetAddress.getByName(localName) ;
+		ServerSocket listeningSocket = new ServerSocket(port2, 5, localAddress) ;
 		
-		//get requested file name
-		String fileName = getRequestedFileName(clientSendingSocket) ;
-		
-		//send requested file to client
-		sendFileToClient(clientSendingSocket, path, fileName) ;
-		
-		//close connection to client
-		clientSendingSocket.close();
+		while(true)
+		{
+			Socket clientSendingSocket ;
+			clientSendingSocket = acceptClientConnection(listeningSocket) ;
+			
+			//get requested file name
+			String fileName = getRequestedFileName(clientSendingSocket) ;
+			
+			//send requested file to client
+			sendFileToClient(clientSendingSocket, path, fileName) ;
+			
+			//close connection to client
+			clientSendingSocket.close();
+		}
 		*/
+		
 		
 		/*Donwloading a file from a client*/
 		
@@ -80,7 +88,8 @@ public class Client
 		String[] fileInfo = serverFileList.get(0) ;
 		String clientName = fileInfo[0] ;
 		String fileName = fileInfo[1] ;
-		Socket clientDownloadingSocket = connectToClient(clientName, port) ;
+		
+		Socket clientDownloadingSocket = connectToClient(clientName, port2) ;
 		
 		//Send requested file name
 		sendRequestedFileName(clientDownloadingSocket, fileName) ;
@@ -137,12 +146,9 @@ public class Client
 	
 	/*Sending a file to a client*/
 	
-	public static Socket acceptClientConnection(String localName, int port) throws IOException
+	public static Socket acceptClientConnection(ServerSocket listeningSocket) throws IOException
 	{
-		InetAddress localAddress = InetAddress.getByName(localName) ;
-		ServerSocket listeningSocket = new ServerSocket(port, 5, localAddress) ;
 		Socket clientSendingSocket = listeningSocket.accept() ;
-		listeningSocket.close();
 		return clientSendingSocket ;
 	}
 	

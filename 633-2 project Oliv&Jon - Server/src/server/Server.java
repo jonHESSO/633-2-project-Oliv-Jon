@@ -31,24 +31,27 @@ public class Server
 		try {
 			InetAddress serverAddress = InetAddress.getByName(serverName) ;
 			serverSocket = new ServerSocket(port, 10, serverAddress) ;
-			clientSocket = serverSocket.accept() ;
-			InetAddress clientAddress = clientSocket.getInetAddress();
-			String clientName = clientAddress.getHostAddress() ;
-			System.out.println("Client "+clientName+" has connected");
-			List<String> clientFiles ;
-			inputStream = new ObjectInputStream(clientSocket.getInputStream()) ;
-			clientFiles = (ArrayList<String>)inputStream.readObject();
-			for (String s : clientFiles)
+			while(true)
 			{
-				String fileName = s ;
-				System.out.println(clientName+" : "+fileName) ;
-				String[] fileInfo = {clientName,fileName} ;
-				fileList.add(fileInfo) ;
+				clientSocket = serverSocket.accept() ;
+				InetAddress clientAddress = clientSocket.getInetAddress();
+				String clientName = clientAddress.getHostAddress() ;
+				System.out.println("Client "+clientName+" has connected");
+				List<String> clientFiles ;
+				inputStream = new ObjectInputStream(clientSocket.getInputStream()) ;
+				clientFiles = (ArrayList<String>)inputStream.readObject();
+				for (String s : clientFiles)
+				{
+					String fileName = s ;
+					System.out.println(clientName+" : "+fileName) ;
+					String[] fileInfo = {clientName,fileName} ;
+					fileList.add(fileInfo) ;
+				}
+				outputStream = new ObjectOutputStream(clientSocket.getOutputStream()) ;
+				outputStream.writeObject(fileList);
+				outputStream.flush();
+				clientSocket.close();
 			}
-			outputStream = new ObjectOutputStream(clientSocket.getOutputStream()) ;
-			outputStream.writeObject(fileList);
-			outputStream.flush();
-			clientSocket.close();
 
 		} catch (Exception e) {
 			e.printStackTrace();
