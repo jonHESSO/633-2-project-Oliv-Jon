@@ -20,7 +20,7 @@ public class Server
 	public static void main(String[] args)
 	{
 		List fileList = new ArrayList<String[]>();
-		String serverName = "192.168.0.15" ;
+		String serverName = "192.168.108.10" ;
 		Socket clientSocket = null ;
 		ServerSocket serverSocket ;
 		ObjectInputStream inputStream ;
@@ -29,18 +29,20 @@ public class Server
 
 
 		try {
-			serverSocket = new ServerSocket(port, 10, InetAddress.getByName(serverName)) ;
+			InetAddress serverAddress = InetAddress.getByName(serverName) ;
+			serverSocket = new ServerSocket(port, 10, serverAddress) ;
 			clientSocket = serverSocket.accept() ;
 			InetAddress clientAddress = clientSocket.getInetAddress();
-			System.out.println("Client "+clientAddress+" has connected");
+			String clientName = clientAddress.getHostAddress() ;
+			System.out.println("Client "+clientName+" has connected");
 			List<String> clientFiles ;
 			inputStream = new ObjectInputStream(clientSocket.getInputStream()) ;
 			clientFiles = (ArrayList<String>)inputStream.readObject();
 			for (String s : clientFiles)
 			{
 				String fileName = s ;
-				System.out.println(clientAddress+" : "+fileName) ;
-				String[] fileInfo = {""+clientAddress,fileName} ;
+				System.out.println(clientName+" : "+fileName) ;
+				String[] fileInfo = {clientName,fileName} ;
 				fileList.add(fileInfo) ;
 			}
 			outputStream = new ObjectOutputStream(clientSocket.getOutputStream()) ;

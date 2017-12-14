@@ -10,8 +10,10 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -30,14 +32,14 @@ public class Client
 		
 		//Variables for connecting to the server		
 		Socket serverConnectionSocket ;
-		String serverName = "192.168.0.1" ;
-		String localName = "192.168.0.1" ;
+		String serverName = "192.168.108.10" ;
+		String localName = "192.168.0.10" ;
 		int port = 50000 ;
 
 		//Data lists
 		List<String> clientFileList = null ;
 		List<String[]> serverFileList = null ;
-		String path = "/data" ;
+		String path = "data/" ;
 		
 		//Get the client file list
 		clientFileList = getClientFiles(path) ;
@@ -54,8 +56,10 @@ public class Client
 		//close connection to server		
 		serverConnectionSocket.close();
 		
+		
 		/*Sending a file to another client*/
 		
+		/*
 		//Accept entering connection
 		Socket clientSendingSocket ;
 		clientSendingSocket = acceptClientConnection(localName, port) ;
@@ -68,12 +72,18 @@ public class Client
 		
 		//close connection to client
 		clientSendingSocket.close();
+		*/
 		
 		/*Donwloading a file from a client*/
 		
 		//Connect to client which has the file		
 		String[] fileInfo = serverFileList.get(0) ;
-		Socket clientDownloadingSocket = connectToClient(fileInfo, port) ;
+		String clientName = fileInfo[0] ;
+		String fileName = fileInfo[1] ;
+		Socket clientDownloadingSocket = connectToClient(clientName, port) ;
+		
+		//Send requested file name
+		sendRequestedFileName(clientDownloadingSocket, fileName) ;
 		
 		//DownLoading the file from the client
 		downloadFileFromClient(clientDownloadingSocket, fileInfo, path) ;
@@ -83,7 +93,10 @@ public class Client
 		
 	}
 	
+	
+
 	/*Broadcasting and retrieving file list to/from server*/
+	
 	public static List<String> getClientFiles(String path)
 	{
 		File directory = new File(path) ;
@@ -142,28 +155,30 @@ public class Client
 	
 	public static boolean sendFileToClient(Socket clientSendingSocket, String path, String fileName) throws IOException
 	{
-//		File file = new File(path+fileName) ;
-		DataOutputStream outputStream = new DataOutputStream(clientSendingSocket.getOutputStream()) ;
+		OutputStream outputStream = clientSendingSocket.getOutputStream() ;
 		Files.copy(Paths.get(path+fileName), outputStream) ;
-//		outputStream.writeObject(file);
 		return true ;
 	}
 	
 	/*Recieving a file from a client*/
 	
-	public static Socket connectToClient(String[] fileInfo, int port) throws IOException
+	public static Socket connectToClient(String clientName, int port) throws IOException
 	{
-		String clientName = fileInfo[0] ;
 		InetAddress clientAddress = InetAddress.getByName(clientName) ;
 		Socket clientDownloadingSocket = new Socket(clientAddress, port) ;
 		return clientDownloadingSocket ;
 	}
 	
+	private static void sendRequestedFileName(Socket clientDownloadingSocket, String fileName) throws IOException
+	{
+		ObjectOutputStream output = new ObjectOutputStream(clientDownloadingSocket.getOutputStream()) ;
+		output.writeObject(fileName) ;		
+	}
+	
 	public static boolean downloadFileFromClient(Socket clientDownloadingSocket, String[] fileInfo, String path) throws IOException, ClassNotFoundException 
 	{
 		String fileName = fileInfo[1] ;
-		DataInputStream inputStream = new DataInputStream(clientDownloadingSocket.getInputStream()) ;
-//		File file = (File)inputStream.readObject() ;
+		InputStream inputStream =clientDownloadingSocket.getInputStream() ;
 		Files.copy(inputStream, Paths.get(path+fileName)) ;
 		return true ;
 	}
