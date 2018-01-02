@@ -1,13 +1,11 @@
 /*
  * 633-2 project Oliv&Jon - Client - Client.java
  * Author : Jonathan Schnyder
- * Created : 1 dÃ©c. 2017
+ * Created : 1 déc. 2017
  */
 
 package client;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -21,8 +19,8 @@ import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Enumeration;
 import java.util.List;
+import java.util.Scanner;
 
 public class Client
 {
@@ -60,46 +58,85 @@ public class Client
 		
 		/*Sending a file to another client*/
 		
-		/*
-		//Accept entering connection
+		
+		//ServerSocket for incoming connections
 		InetAddress localAddress = InetAddress.getByName(localName) ;
 		ServerSocket listeningSocket = new ServerSocket(port2, 5, localAddress) ;
 		
-		while(true)
-		{
-			Socket clientSendingSocket ;
-			clientSendingSocket = acceptClientConnection(listeningSocket) ;
-			
-			//get requested file name
-			String fileName = getRequestedFileName(clientSendingSocket) ;
-			
-			//send requested file to client
-			sendFileToClient(clientSendingSocket, path, fileName) ;
-			
-			//close connection to client
-			clientSendingSocket.close();
-		}
-		*/
+		//Creating thread for accepting incoming connections
+		Thread waitToSendThread = new Thread() {
+			@Override
+			public void run()
+			{
+				while(true)
+				{
+					try
+					{
+						//accept incoming connection
+						Socket clientSendingSocket ;
+						clientSendingSocket = acceptClientConnection(listeningSocket) ;
+						//Create new thread for connecting client
+						Thread sendingThread = new Thread() {
+							@Override
+							public void run()
+							{
+								//get requested file name
+								String fileName;
+								try
+								{
+									fileName = getRequestedFileName(clientSendingSocket);
+									//send requested file to client
+									sendFileToClient(clientSendingSocket, path, fileName) ;						
+									//close connection to client
+									clientSendingSocket.close();
+								} catch (ClassNotFoundException | IOException e)
+								{
+									e.printStackTrace();
+								}								
+							}
+						};
+						//start the client thread
+						sendingThread.start();
+					
+					} 
+					catch (IOException e)
+					{
+						e.printStackTrace();
+					}
+				}		
+			}			
+		};
+		//Start the thread for sending files
+		waitToSendThread.start();	
 		
 		
 		/*Donwloading a file from a client*/
 		
-		//Connect to client which has the file		
-		String[] fileInfo = serverFileList.get(0) ;
-		String clientName = fileInfo[0] ;
-		String fileName = fileInfo[1] ;
-		
-		Socket clientDownloadingSocket = connectToClient(clientName, port2) ;
-		
-		//Send requested file name
-		sendRequestedFileName(clientDownloadingSocket, fileName) ;
-		
-		//DownLoading the file from the client
-		downloadFileFromClient(clientDownloadingSocket, fileInfo, path) ;
-		
-		//close connection to the client
-		clientDownloadingSocket.close();		
-		
+		//Ask the user which file to download
+		Scanner scanner = new Scanner(System.in) ;
+		while(true)
+		{
+			showAvailableFiles(serverFileList);
+			System.out.println("Select index of wanted file");
+			int fileIndex = scanner.nextInt() ;		
+			
+			
+			//Connect to client which has the file		
+			String[] fileInfo = serverFileList.get(fileIndex) ;
+			String clientName = fileInfo[0] ;
+			String fileName = fileInfo[1] ;
+			
+			Socket clientDownloadingSocket = connectToClient(clientName, port2) ;
+			
+			//Send requested file name
+			sendRequestedFileName(clientDownloadingSocket, fileName) ;
+			
+			//DownLoading the file from the client
+			downloadFileFromClient(clientDownloadingSocket, fileInfo, path) ;
+			
+			//close connection to the client
+			clientDownloadingSocket.close();	
+		}		
 	}
 	
 	
@@ -186,7 +223,17 @@ public class Client
 		String fileName = fileInfo[1] ;
 		InputStream inputStream =clientDownloadingSocket.getInputStream() ;
 		Files.copy(inputStream, Paths.get(path+fileName)) ;
+		System.out.println("File '"+fileName+"' downloaded to "+path);
 		return true ;
+	}
+	
+	public static void showAvailableFiles(List<String[]> serverFileList)
+	{
+		System.out.println("Available files :");
+		for (int i = 0; i < serverFileList.size(); i++)
+		{
+			System.out.println(i+" : "+serverFileList.get(i)[0]+" : "+serverFileList.get(i)[1]);
+		}
 	}
 	
 }
