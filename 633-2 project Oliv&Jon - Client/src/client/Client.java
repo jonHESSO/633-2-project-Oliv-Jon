@@ -18,6 +18,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.UnknownHostException;
@@ -31,6 +32,7 @@ import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JList;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.event.ListSelectionEvent;
@@ -67,10 +69,11 @@ public class Client
 		try {
 			serverFileList = refreshFileList(path, localName, serverName, serverPort);
 			downloadbleList.setListData(getFileNames(serverFileList)) ;
-		} catch (ClassNotFoundException e2) {
-			e2.printStackTrace();
-		} catch (IOException e2) {
-			e2.printStackTrace();
+		} catch (Exception e) {
+			fileInfo = null ;
+			downloadbleList.clearSelection();
+			download.setEnabled(false);
+			JOptionPane.showMessageDialog(mainFrame, "Could not connect to server");
 		}
 
 		/*GUI elements*/
@@ -97,7 +100,7 @@ public class Client
 					}
 					else
 					{
-						selectedFile.setText("File already exists");
+						selectedFile.setText("Could not download file");
 					}
 
 				} catch (ClassNotFoundException e1) {
@@ -119,11 +122,12 @@ public class Client
 				try {
 					serverFileList = refreshFileList(path, localName, serverName, serverPort) ;
 					downloadbleList.setListData(getFileNames(serverFileList)) ;
-				} catch (ClassNotFoundException e1) {
-					e1.printStackTrace();
-				} catch (IOException e1) {
-					e1.printStackTrace();
-				}
+				} catch (Exception e1) {
+					fileInfo = null ;
+					downloadbleList.clearSelection();
+					download.setEnabled(false);
+					JOptionPane.showMessageDialog(mainFrame, "Could not connect to server");
+				} 
 				fileInfo = null ;
 				selectedFile.setText("");
 				downloadbleList.clearSelection();
@@ -204,10 +208,8 @@ public class Client
 		File directory = new File(path) ;
 		List<String> clientFiles = new ArrayList<>() ;
 		File[] files = directory.listFiles() ;
-		System.out.println(files) ;
 		for (File f : files) {
 			clientFiles.add(f.getName()) ;
-			System.out.println(f.getName());
 		}
 		return clientFiles ;
 	}
@@ -219,8 +221,6 @@ public class Client
 		Vector<String[]> fileList = new Vector<String[]>()  ;
 		InetAddress serverAddress = InetAddress.getByName(serverName);		
 		Socket serverSocket = new Socket(serverAddress, serverPort) ;
-
-		System.out.println("connected to server");
 
 		ObjectOutputStream outputStream = new ObjectOutputStream(serverSocket.getOutputStream()) ;
 		outputStream.writeObject(clientFiles);
@@ -270,24 +270,28 @@ public class Client
 		String clientName = fileInfo[0] ;
 
 		InetAddress clientAddress = InetAddress.getByName(clientName) ;
-		Socket clientSocket = new Socket(clientAddress, clientPort) ;
-
-		InputStream inputStream =clientSocket.getInputStream() ;
-		ObjectOutputStream output = new ObjectOutputStream(clientSocket.getOutputStream()) ;
-
-		//send wanted file anme
-		output.writeObject(fileName) ;
-
-		//download file to path
+		Socket clientSocket = new Socket();
 		try {
-			Files.copy(inputStream, Paths.get(path+fileName)) ;
-		} catch (Exception e) {
+			clientSocket.connect(new InetSocketAddress(clientAddress, clientPort), 5) ;
+			InputStream inputStream =clientSocket.getInputStream() ;
+			ObjectOutputStream output = new ObjectOutputStream(clientSocket.getOutputStream()) ;
+
+			//send wanted file anme
+			output.writeObject(fileName) ;
+
+			//download file to path
+			try {
+				Files.copy(inputStream, Paths.get(path+fileName)) ;
+			} catch (Exception e) {
+				clientSocket.close();
+				JOptionPane.showMessageDialog(mainFrame, "File already exists");
+				return false ;
+			}
 			clientSocket.close();
+		} catch (Exception e) {
+			JOptionPane.showMessageDialog(mainFrame, "Client is AFK");
 			return false ;
 		}
-		clientSocket.close();
-
-		System.out.println("File '"+fileName+"' downloaded to "+path);
 		return true ;
 	}
 }
