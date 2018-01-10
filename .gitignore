@@ -3,6 +3,7 @@
 
 # Log file
 *.log
+*.log.*
 
 # BlueJ files
 *.ctxt
@@ -28,3 +29,6 @@ data/*
 
 #intelliJ files
 .idea/*
+
+#weird additionnal gitignore files
+*.gitignore

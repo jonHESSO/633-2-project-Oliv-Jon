@@ -6,29 +6,93 @@
 
 package server;
 
+import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Collections;
 import java.util.List;
+import java.util.logging.FileHandler;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
 
 public class Server
 {
+	private final static Logger logger = Logger.getLogger(Server.class.getName());
+	static FileHandler fh = null;
+	static String currentMonth = new SimpleDateFormat("MMM").format(Calendar.getInstance().get(Calendar.MONTH)).replaceAll("\\.", "") ;;
+	static Logger log = Logger.getLogger("");
+	//Creating arrylist containgin a list of files with the IP of the client which has the file
+	static List<String[]> fileList = new ArrayList<String[]>() ;
+	//Creating a thread safe list from the file list
+	static List<String[]> syncList  = Collections.synchronizedList(fileList);
+	//Local server IP address
+	static String serverName = "192.168.0.15" ;
+	//Listening ServerSocket
+	static ServerSocket serverSocket ;
+	//Listening on port 50000
+	static int port = 50000 ;
+
 	public static void main(String[] args)
 	{
-		//Creating arrylist containgin a list of files with the IP of the client which has the file
-		List<String[]> fileList = new ArrayList<String[]>() ;
-		//Creating a thread safe list from the file list
-		List<String[]> syncList  = Collections.synchronizedList(fileList);
-		//Local server IP address
-		String serverName = "192.168.108.10" ;
-		//Listening ServerSocket
-		ServerSocket serverSocket ;
-		//Listening on port 50000
-		int port = 50000 ;
+
+		
+		//creating file handler for logger
+		try {
+			fh = new FileHandler("ServerLogger_"+currentMonth+".log", true);
+			fh.setFormatter(new SimpleFormatter());
+			log.addHandler(fh);
+		} catch (SecurityException e2) {
+			// TODO Auto-generated catch block
+			e2.printStackTrace();
+		} catch (IOException e2) {
+			// TODO Auto-generated catch block
+			e2.printStackTrace();
+		}
+		
+		logger.log(Level.INFO,"Server has started");
+
+		//thread for creating monthly log file
+		Thread thread = new Thread() {
+			@Override
+			public void run()
+			{
+				while(true)
+				{
+					String tempMonth = new SimpleDateFormat("MMM").format(Calendar.getInstance().get(Calendar.MONTH)).replaceAll("\\.", "") ;
+					if(!tempMonth.equals(currentMonth))
+					{
+						logger.log(Level.INFO,"Month changed "+currentMonth);
+						currentMonth = tempMonth ;
+						try {
+							log.removeHandler(fh);
+							fh = new FileHandler("ServerLogger_"+currentMonth+".log", true);
+							fh.setFormatter(new SimpleFormatter());
+							log.addHandler(fh);
+
+						} catch (SecurityException | IOException e) {
+							e.printStackTrace();
+							logger.log(Level.SEVERE,e.toString());
+						}
+
+					}
+					try {
+						sleep(1000);
+					} catch (InterruptedException e1) {
+						e1.printStackTrace();
+						logger.log(Level.SEVERE,e1.toString());
+					}
+				}
+
+			}
+		};
+		thread.start();
 
 		//Starting the server
 		try 
@@ -65,7 +129,7 @@ public class Server
 							inputStream = new ObjectInputStream(clientSocket.getInputStream()) ;
 							clientFiles = (ArrayList<String>)inputStream.readObject();
 							//Printing how many files the client has
-							System.out.println("Client "+clientName+" has connected with "+clientFiles.size()+" files");
+							logger.log(Level.INFO, "Client "+clientName+" has connected with "+clientFiles.size()+" files");
 							//For each file in the client's file list
 							for (String s : clientFiles)
 							{
@@ -88,7 +152,7 @@ public class Server
 							clientSocket.close();
 						}
 						catch(Exception e)
-						{}
+						{logger.log(Level.WARNING, e.toString());}
 					}
 				} ;	
 				//starting the client thread
@@ -97,7 +161,7 @@ public class Server
 		} 
 		catch (Exception e) 
 		{
-			e.printStackTrace();
+			logger.log(Level.SEVERE, e.toString());
 		}
 	}
 
