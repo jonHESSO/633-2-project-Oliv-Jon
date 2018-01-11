@@ -33,7 +33,7 @@ public class Server
 	//Creating a thread safe list from the file list
 	static List<String[]> syncList  = Collections.synchronizedList(fileList);
 	//Local server IP address
-	static String serverName = "localhost" ;
+	static String serverName = "192.168.20.210" ;
 	//Listening ServerSocket
 	static ServerSocket connectServerSocket ;
 	static ServerSocket disconnectServerSocket ;

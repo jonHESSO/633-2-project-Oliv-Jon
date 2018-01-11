@@ -42,8 +42,8 @@ import javax.swing.event.ListSelectionListener;
 
 public class Client
 {	
-	static String serverName = "localhost" ;
-	static String localName = "localhost" ;
+	static String serverName = "192.168.20.210" ;
+	static String localName = "192.168.20.210" ;
 	static int serverPort = 50000 ;
 	static int clientPort = 50001 ;
 	static int disconnectPort = 50002 ;
@@ -321,7 +321,7 @@ public class Client
 			e.printStackTrace();
 		} catch (IOException e)
 		{
-			e.printStackTrace();
+//			e.printStackTrace();
 		}		
 		return 0 ;
 	}
