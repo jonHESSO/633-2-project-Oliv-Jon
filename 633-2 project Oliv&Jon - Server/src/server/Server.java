@@ -1,7 +1,7 @@
 /*
  * 633-2 project Oliv&Jon - Server - Server.java
  * Author : Jonathan Schnyder
- * Created : 1 déc. 2017
+ * Created : 1 dï¿½c. 2017
  */
 
 package server;
@@ -33,16 +33,18 @@ public class Server
 	//Creating a thread safe list from the file list
 	static List<String[]> syncList  = Collections.synchronizedList(fileList);
 	//Local server IP address
-	static String serverName = "192.168.0.15" ;
+	static String serverName = "localhost" ;
 	//Listening ServerSocket
-	static ServerSocket serverSocket ;
+	static ServerSocket connectServerSocket ;
+	static ServerSocket disconnectServerSocket ;
 	//Listening on port 50000
-	static int port = 50000 ;
+	static int connectPort = 50000 ;
+	static int disconnectPort = 50002 ;
 
 	public static void main(String[] args)
 	{
 
-		
+
 		//creating file handler for logger
 		try {
 			fh = new FileHandler("ServerLogger_"+currentMonth+".log", true);
@@ -55,11 +57,11 @@ public class Server
 			// TODO Auto-generated catch block
 			e2.printStackTrace();
 		}
-		
+
 		logger.log(Level.INFO,"Server has started");
 
 		//thread for creating monthly log file
-		Thread thread = new Thread() {
+		Thread loggerThread = new Thread() {
 			@Override
 			public void run()
 			{
@@ -92,7 +94,7 @@ public class Server
 
 			}
 		};
-		thread.start();
+		loggerThread.start();
 
 		//Starting the server
 		try 
@@ -100,70 +102,127 @@ public class Server
 			//get InetAddress of the server
 			InetAddress serverAddress = InetAddress.getByName(serverName) ;
 			//create the listening ServerSocket on port 50000
-			serverSocket = new ServerSocket(port, 10, serverAddress) ;
-			//Indefinitely accept clients
-			while(true)
+			connectServerSocket = new ServerSocket(connectPort, 10, serverAddress) ;
+			disconnectServerSocket = new ServerSocket(disconnectPort, 10, serverAddress) ;
+			Thread clientAcceptThread = new Thread() 
 			{
-				//Socket for connecting client
-				Socket clientSocket ;
-				//accpet connecting client
-				clientSocket = serverSocket.accept() ;
-				//Create new thread for client
-				Thread clientThread = new Thread() 
+				@Override
+				public void run() 
 				{
-					@Override
-					public void run() 
+					//Indefinitely accept clients
+					while(true)
 					{
-						try 
+						//Socket for connecting client
+
+						//accpet connecting client
+						try
 						{
-							//Input and output streams for getting the client's files and
-							//sending the available files list
-							ObjectInputStream inputStream ;
-							ObjectOutputStream outputStream ;
-							//Getting the client's IP address
-							InetAddress clientAddress = clientSocket.getInetAddress();
-							String clientName = clientAddress.getHostAddress() ;
-							//List containing the client's files
-							List<String> clientFiles ;
-							//Getting the client's file list
-							inputStream = new ObjectInputStream(clientSocket.getInputStream()) ;
-							clientFiles = (ArrayList<String>)inputStream.readObject();
-							//Printing how many files the client has
-							logger.log(Level.INFO, "Client "+clientName+" has connected with "+clientFiles.size()+" files");
-							//For each file in the client's file list
-							for (String s : clientFiles)
+							Socket clientSocket = connectServerSocket.accept() ;
+
+							//Create new thread for client
+							Thread clientThread = new Thread() 
 							{
-								//getting the filename
-								String fileName = s ;
-								//if the file doesn't already exist with this IP in the 
-								if(!fileIsInList(syncList, fileName, clientName))
+								@Override
+								public void run() 
 								{
-									//creating a String array with the {Client IP, filename.ext}
-									String[] fileInfo = {clientName,fileName} ;
-									//Addint the String array to the available files list
-									syncList.add(fileInfo) ;
-								}					
-							}
-							//Sending the available files list to the client
-							outputStream = new ObjectOutputStream(clientSocket.getOutputStream()) ;
-							outputStream.writeObject(fileList);
-							outputStream.flush();
-							//closing the connection to the client
-							clientSocket.close();
+									try 
+									{
+										//Input and output streams for getting the client's files and
+										//sending the available files list
+										ObjectInputStream inputStream ;
+										ObjectOutputStream outputStream ;
+										//Getting the client's IP address
+										InetAddress clientAddress = clientSocket.getInetAddress();
+										String clientName = clientAddress.getHostAddress() ;
+										//List containing the client's files
+										List<String> clientFiles ;
+										//Getting the client's file list
+										inputStream = new ObjectInputStream(clientSocket.getInputStream()) ;
+										clientFiles = (ArrayList<String>)inputStream.readObject();
+										//Printing how many files the client has
+										logger.log(Level.INFO, "Client "+clientName+" has connected with "+clientFiles.size()+" files");
+										//For each file in the client's file list
+										for (String s : clientFiles)
+										{
+											//getting the filename
+											String fileName = s ;
+											//if the file doesn't already exist with this IP in the 
+											if(!fileIsInList(syncList, fileName, clientName))
+											{
+												//creating a String array with the {Client IP, filename.ext}
+												String[] fileInfo = {clientName,fileName} ;
+												//Addint the String array to the available files list
+												syncList.add(fileInfo) ;
+											}					
+										}
+										//Sending the available files list to the client
+										outputStream = new ObjectOutputStream(clientSocket.getOutputStream()) ;
+										outputStream.writeObject(fileList);
+										outputStream.flush();
+										//closing the connection to the client
+										clientSocket.close();
+									}
+									catch(Exception e)
+									{logger.log(Level.WARNING, e.toString());}
+								}
+							} ;	
+							//starting the client thread
+							clientThread.start();
+						} catch (IOException e1)
+						{
+							{logger.log(Level.WARNING, e1.toString());}
 						}
-						catch(Exception e)
-						{logger.log(Level.WARNING, e.toString());}
 					}
-				} ;	
-				//starting the client thread
-				clientThread.start();
-			}
-		} 
+				}
+
+			} ;
+
+			Thread clientDisconnectThread = new Thread() {
+				@Override
+				public void run()
+				{
+					//Indefinitely accept clients
+					while(true)
+					{
+						try
+						{
+							Socket clientSocket = disconnectServerSocket.accept() ;
+
+							//Create new thread for client
+							Thread clientThread = new Thread() 
+							{
+								@Override
+								public void run() 
+								{
+									InetAddress clientAddress = clientSocket.getInetAddress();
+									String clientName = clientAddress.getHostAddress() ;
+									for (int i = 0; i < syncList.size(); i++)
+									{
+										if(syncList.get(i)[0].equals(clientName)) ;
+										syncList.remove(i) ;
+									}
+									
+									logger.log(Level.INFO, "Client "+clientName+" has disconnected");
+								}
+							};
+							clientThread.start();
+						} catch (IOException e)
+						{
+							{logger.log(Level.WARNING, e.toString());}
+						}
+					}
+				}
+			};
+
+			clientAcceptThread.start();
+			clientDisconnectThread.start(); 
+		}
 		catch (Exception e) 
 		{
 			logger.log(Level.SEVERE, e.toString());
 		}
 	}
+
 
 	//method for verifying if the available files list already contains this filename for this IP address
 	public static boolean fileIsInList(List<String[]> fileList, String fileName, String clientName)

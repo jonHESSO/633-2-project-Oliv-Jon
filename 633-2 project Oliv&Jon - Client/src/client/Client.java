@@ -1,7 +1,7 @@
 /*
  * 633-2 project Oliv&Jon - Client - Client.java
  * Author : Jonathan Schnyder
- * Created : 1 déc. 2017
+ * Created : 1 dï¿½c. 2017
  */
 
 package client;
@@ -11,6 +11,8 @@ import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -40,10 +42,11 @@ import javax.swing.event.ListSelectionListener;
 
 public class Client
 {	
-	static String serverName = "192.168.0.15" ;
-	static String localName = "192.168.0.15" ;
+	static String serverName = "localhost" ;
+	static String localName = "localhost" ;
 	static int serverPort = 50000 ;
 	static int clientPort = 50001 ;
+	static int disconnectPort = 50002 ;
 	static ServerSocket listeningSocket = null;
 
 	static List<String[]> serverFileList = null ;
@@ -55,6 +58,7 @@ public class Client
 	static JLabel selectedFile = new JLabel("") ;
 	static JButton download = new JButton("Donwload") ;
 	static JButton refresh = new JButton("Refresh files") ;
+	static JButton disconnect = new JButton("Disconnect") ;
 	static JFrame mainFrame = new JFrame("Download files") ;
 	static JPanel southPanel = new JPanel(new FlowLayout()) ;
 
@@ -77,7 +81,7 @@ public class Client
 		}
 
 		/*GUI elements*/
-		
+
 		downloadbleList.addListSelectionListener(new ListSelectionListener() {
 			@Override
 			public void valueChanged(ListSelectionEvent arg0) {
@@ -133,6 +137,14 @@ public class Client
 				downloadbleList.clearSelection();
 				download.setEnabled(false);
 			}
+		});
+		
+		mainFrame.addWindowListener(new WindowAdapter()
+		{
+		    public void windowClosing(WindowEvent e)
+		    {
+		    	disconnect(serverName, disconnectPort) ; 
+		    }
 		});
 		download.setEnabled(false);
 		scrollPane.setPreferredSize(new Dimension(300,300));
@@ -293,5 +305,24 @@ public class Client
 			return false ;
 		}
 		return true ;
+	}
+
+	public static int disconnect(String serverName, int disconnectServerPort)
+	{
+		InetAddress serverAddress;
+		try
+		{
+			serverAddress = InetAddress.getByName(serverName);
+			Socket serverSocket = new Socket() ;
+			serverSocket.connect(new InetSocketAddress(serverAddress, disconnectServerPort), 5);
+			serverSocket.close();
+		} catch (UnknownHostException e)
+		{
+			e.printStackTrace();
+		} catch (IOException e)
+		{
+			e.printStackTrace();
+		}		
+		return 0 ;
 	}
 }
